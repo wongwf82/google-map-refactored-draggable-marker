@@ -5,7 +5,7 @@ The implementation is in Ruby on Rails. Feel free to extract what you need (esp.
 
 ###The flow is:
 
-- User moves navigates away from address text field
+- User navigates away from address text field
 - The modal pops up
 - User enters a location to be searched
 - User can click/drag marker
