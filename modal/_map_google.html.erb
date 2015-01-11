@@ -1,0 +1,153 @@
+<% content_for :page_header do %>
+
+<script src="https://maps.googleapis.com/maps/api/js?v=3.exp&libraries=places"></script>
+
+<% end %>
+
+<div class="modal fade" id="venueMapModal" tabindex="-1" role="dialog">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <%= render 'shared/modal_close' %>
+        <h3 class="modal-title"><%= t("views.venues.map.title") %></h3>
+      </div>
+      <div class="modal-body ta-left">
+        <div id="map-container">
+          <%= text_field_tag 'map-address', '', 
+                placeholder: t("views.venues.map.search"), 
+                class: "controls" %>
+          <div id="map-canvas"></div>
+          <input id="temp-lat" type="hidden">
+          <input id="temp-lng" type="hidden">
+          <input id="temp-city" type="hidden">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <%= button_tag t("general.done"), 
+              type: "button", 
+              class: "btn btn-success full-width", 
+              onclick: "resolveLocation();",
+              data: { dismiss: "modal" } %>        
+        <%= render 'shared/modal_cancel' %>
+      </div>
+    </div>
+  </div>
+</div> 
+
+<% content_for :page_footer do %>
+
+<script>
+
+  var map;
+  var markers = [];
+
+  function initGoogleMap() {
+    var mapOptions = {
+      // Zoom to default area
+      center: new google.maps.LatLng(1.309008, 103.786251),
+      zoom: 18,
+      mapTypeId: google.maps.MapTypeId.ROADMAP
+    };
+    map = new google.maps.Map(elem('map-canvas'), mapOptions);
+    google.maps.event.addListener(map, "click", function(e) {
+      panToMap(e.latLng);
+    });
+
+    // Search box
+    var input = elem('map-address');
+    map.controls[google.maps.ControlPosition.TOP_LEFT].push(input);
+    var autocomplete = new google.maps.places.Autocomplete(input);
+    google.maps.event.addListener(autocomplete, 'place_changed', function() {
+      var place = autocomplete.getPlace();
+      var point = place.geometry.location;
+      panToMap(point);
+    });
+
+    // Resize map to fit modal
+    $("#venueMapModal").on("shown.bs.modal", function(e) {
+      google.maps.event.trigger(map, 'resize');
+    });
+  }
+
+  function panToMap(point) {
+    rememberLocation(point);
+    deleteMarkers();
+    createMarker(point);
+    map.panTo(point); 
+  }
+
+  function createMarker(point) {
+    var marker = new google.maps.Marker({
+      map: map,
+      position: point, 
+      draggable: true,
+      title: "Drag this marker to the right spot"
+    });
+    google.maps.event.addListener(marker, "dragend", function(e) {
+      rememberLocation(marker.getPosition());
+    });
+    markers.push(marker);
+    return marker;  
+  }
+
+  function deleteMarkers() {
+    for (var i = 0; i < markers.length; i++) {
+      markers[i].setMap(null);
+    }
+    markers = [];
+  }  
+
+  function rememberLocation(point) {
+    elem('temp-lat').value = point.lat();
+    elem('temp-lng').value = point.lng();
+
+    var geocoder = new google.maps.Geocoder();
+    geocoder.geocode({ 'latLng': point }, function(results, status) {
+        var city;
+        if (results[0]) {
+          for (var i=0; i<results[0].address_components.length; i++) {
+            for (var b=0; b<results[0].address_components[i].types.length; b++) {
+              if (results[0].address_components[i].types[b] == "locality") {
+                  city = results[0].address_components[i];
+                  break;
+              }
+            }
+          }
+        }
+        elem('temp-city').value = city.short_name;
+      }
+    );
+  }
+
+  var form;
+  function showGoogleMap(address) {
+    form = $(address).closest(".venue-form");
+    var lat = form.find('.lat').val();
+    var lng = form.find('.lng').val();
+    if (lat) {
+      setTimeout(function() {
+        panToMap(new google.maps.LatLng(lat, lng));
+      }, 500);
+    }
+    $('#venueMapModal').modal('show');
+  }
+
+  function resolveLocation() {
+    var lat = elem('temp-lat').value;
+    var lng = elem('temp-lng').value;
+    var city = elem('temp-city').value;
+
+    form.find('.lat').val(lat);
+    form.find('.lng').val(lng);
+    form.find('.city').val(city);
+    setTimeout(function() {
+      form.find('.phone').focus();
+    }, 200);
+  }
+
+  $(function() {
+    initGoogleMap();
+  });
+</script>
+
+<% end %>
